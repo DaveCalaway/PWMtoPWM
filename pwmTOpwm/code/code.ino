@@ -1,6 +1,10 @@
 /*
   PWM to PWM
 
+  This example change the a pwm_in pulse in to other pwm_out pulse.
+  Oled display integration: SCL = 3 -- SDA = 2
+
+  Theory of PWM signal in Arduino:
   Arduino PWM has period of 490Hz -> 0.002040s
   This means that the PWM singal gose to 0 = 0Hz = 0s to 255 = 490Hz = 0.002040s
   pulseIn return us, so 0.002040s become 2040 us.
@@ -11,9 +15,18 @@
 #define pot_pin A0
 #define pwm_in_pin A1
 #define pwm_out_pin 6
-//#define Vpot_min_sensibility 2
-#define ref 500 // refrash the screen ms
+#define ref 500 // refresh the screen ms
+
+// ------ Correlation
 #define Vpot_max 720 // that value is correlated to the EMA_a_Vpot
+// if you want to change the EMA_a_Vpot, you must change the Vpot_max.
+// Yes, i want to change EMA_a_Vpot:
+// 1. change 0 < EMA_a_Vpot < 1
+// 2. uncomment #define calibration
+//#define calibration
+// 3. put the potentiometer at the maximum value
+// 4. change Vpot_max to the maximum value you have read from the serial + 5
+// 5. comment #define calibration
 
 long previousMillis = 0;
 int pwm_out = 0;
@@ -33,17 +46,19 @@ void setup() {
 void loop() {
 
   // Read the PWM_in
-  int pulse = pulseIn(pwm_in_pin, HIGH); // pulse 0 - 2040
+  int pulse = pulseIn(pwm_in_pin, HIGH, 2050); // pulse 0 - 2040
 
   // Read Vpot
   int Vpot = analogRead(pot_pin);  // Vpot 0 - 1023
   // media Vpot
   EMA_S_Vpot = (EMA_a_Vpot * Vpot) + ((1 - EMA_a_Vpot) * EMA_S_Vpot); //run the EMA
-  //Serial.println(EMA_S_Vpot);
+#ifdef calibration
+  Serial.println(EMA_S_Vpot);
+#endif
   EMA_S_Vpot = map(EMA_S_Vpot, 0, Vpot_max, 0, 255);
 
-  if ( pulse > 1 ) { // Is the Laser ON ?
-    if (EMA_S_Vpot > 0) {  // Vpot > Vpot_min_sensibility -> put PWM_out + Vpot
+  if ( pulse > 2 ) { // Is the Laser ON ?
+    if (EMA_S_Vpot > 5) {  // Vpot > Vpot_min_sensibility -> put PWM_out + Vpot
       pwm_out = map(pulse, 0, 2040, 0, 255);
       pwm_out = pwm_out + ( map( EMA_S_Vpot, 0, 255, 0, 255 - pwm_out ) );
       analogWrite(pwm_out_pin, pwm_out);
@@ -54,11 +69,16 @@ void loop() {
       analogWrite(pwm_out_pin, pwm_out);
     }
   }
+  else { // The laser is OFF.
+    analogWrite(pwm_out_pin, 0);
+    pwm_out = 0;
+  }
 
-  //Serial.println(EMA_S_Vpot_print);
 
   // ------------- Display
   if (millis() - previousMillis >= ref) {
+    previousMillis = millis();
+
     u8x8.setCursor(2, 1);
     u8x8.print("PWM IN:");
     u8x8.setCursor(10, 1);
