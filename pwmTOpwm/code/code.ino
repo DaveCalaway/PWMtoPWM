@@ -31,13 +31,16 @@
 long previousMillis = 0;
 int pwm_out = 0;
 
-float EMA_a_Vpot = 0.6;      //initialization of EMA alpha
+float EMA_a_Vpot = 0.6;      //initialization of EMA
 int EMA_S_Vpot = 0;
+
+float EMA_a_pulse = 0.4;
+int EMA_S_pulse = 0;
 
 U8X8_SSD1306_128X64_NONAME_SW_I2C u8x8(/* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);   // OLEDs without Reset of the Display
 
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);
   u8x8.begin();
   u8x8.setFont(u8x8_font_pxplustandynewtv_u);
   EMA_S_Vpot = analogRead(pot_pin);  //set EMA S for t=1
@@ -46,7 +49,10 @@ void setup() {
 void loop() {
 
   // Read the PWM_in
-  int pulse = pulseIn(pwm_in_pin, HIGH, 2050); // pulse 0 - 2040
+  unsigned long pulse = pulseIn(pwm_in_pin, HIGH); // pulse 0 - 2040
+  // media pulse
+  EMA_S_pulse = (EMA_a_pulse * pulse) + ((1 - EMA_a_pulse) * EMA_S_pulse); //run the EMA
+  pwm_out = map(EMA_S_pulse, 0, 2040, 0, 255);
 
   // Read Vpot
   int Vpot = analogRead(pot_pin);  // Vpot 0 - 1023
@@ -59,13 +65,11 @@ void loop() {
 
   if ( pulse > 2 ) { // Is the Laser ON ?
     if (EMA_S_Vpot > 5) {  // Vpot > Vpot_min_sensibility -> put PWM_out + Vpot
-      pwm_out = map(pulse, 0, 2040, 0, 255);
       pwm_out = pwm_out + ( map( EMA_S_Vpot, 0, 255, 0, 255 - pwm_out ) );
       analogWrite(pwm_out_pin, pwm_out);
     }
 
     else {// Vpot < Vpot_min_sensibility -> copy the PWM_in to PWM_out
-      pwm_out = map(pulse, 0, 2040, 0, 255);
       analogWrite(pwm_out_pin, pwm_out);
     }
   }
@@ -74,31 +78,48 @@ void loop() {
     pwm_out = 0;
   }
 
-
   // ------------- Display
   if (millis() - previousMillis >= ref) {
+    byte val = 0;
     previousMillis = millis();
 
     u8x8.setCursor(2, 1);
     u8x8.print("PWM IN:");
-    u8x8.setCursor(10, 1);
-    u8x8.print(map(pulse, 0, 2040, 0, 100));
-    u8x8.setCursor(13, 1);
-    u8x8.print("%");
+    val = map(pulse, 0, 2040, 0, 100);
+
+    if (val < 10) {
+      u8x8.setCursor(11, 1);
+      u8x8.print(".");
+    }
+    else {
+      u8x8.setCursor(10, 1);
+      u8x8.print(val);
+      u8x8.setCursor(13, 1);
+      u8x8.print("%");
+    }
 
     u8x8.setCursor(2, 12);
     u8x8.print("V POT :");
+    val = map(EMA_S_Vpot, 0, 255, 0, 100);
+    if (val < 10) {
+      u8x8.setCursor(11, 12);
+      u8x8.print(" ");
+    }
     u8x8.setCursor(10, 12);
-    u8x8.print(map(EMA_S_Vpot, 0, 255, 0, 100));
+    u8x8.print(val);
     u8x8.setCursor(13, 12);
     u8x8.print("%");
 
     u8x8.setCursor(2, 23);
     u8x8.print("PWM OUT:");
+    val = map(pwm_out, 0, 255, 0, 100);
+    if (val < 10) {
+      u8x8.setCursor(11, 23);
+      u8x8.print(" ");
+    }
     u8x8.setCursor(10, 23);
-    u8x8.print(map(pwm_out, 0, 255, 0, 100));
+    u8x8.print(val);
     u8x8.setCursor(13, 23);
     u8x8.print("%");
-
   }
 }
