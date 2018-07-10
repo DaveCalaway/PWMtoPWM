@@ -44,7 +44,7 @@ Encoder myEnc(3, 2); // on the Pro Mini / UNO ecc....
 U8X8_SSD1306_128X64_NONAME_SW_I2C u8x8(/* clock=*/ 5, /* data=*/ 4, /* reset=*/ U8X8_PIN_NONE);
 
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);
   pinMode(button_pin, INPUT_PULLUP);
   u8x8.begin();
   u8x8.setFont(u8x8_font_pxplustandynewtv_u);
@@ -57,41 +57,39 @@ void loop() {
   // media pulse
   EMA_S_pulse = (EMA_a_pulse * pulse) + ((1 - EMA_a_pulse) * EMA_S_pulse); //run the EMA
   pwm_in = map(EMA_S_pulse, 0, 2040, 0, 100);
-
-  if ( pwm_in > 5 && pulse != 0) { // LASER ON
+  //Serial.println(pulse);
+  // LASER ON
+  if ( pulse > 10 ) {
     stato = 1;
-    if (digitalRead(button_pin) == 0) { // reset
+    // Reset
+    if (digitalRead(button_pin) == 0) {
       delay(15);
       myEnc.write(0);
     }
-    else { // Read Encoder
+    // Read Encoder
+    else {
       newPosition = myEnc.read();
-      if (newPosition != oldPosition || pwm_in != oldpwm_in) {
-        // 0 < pwm_in + newPosition < 99
-        if ( ((pwm_in + newPosition) <= 98) && ((pwm_in + newPosition) > 2)) {
-          pwm_out = map(pwm_in + newPosition, 0, 100, 0, 255);
-          Serial.println(pwm_out);
-          analogWrite(pwm_out_pin, pwm_out);
+      // 0 < pwm_in + newPosition < 99
+      if ( ((pwm_in + newPosition) <= 98) && ((pwm_in + newPosition) > 2)) {
+        pwm_out = map(pwm_in + newPosition, 0, 100, 0, 255);
+        analogWrite(pwm_out_pin, pwm_out);
+      }
+      else {
+        if ( pwm_in + newPosition > 98 ) {
+          newPosition = 98 - pwm_in; // calculate the max/min value can be displayed
+          myEnc.write(newPosition);
         }
-        else {
-          if ( pwm_in + newPosition > 98 ) {
-            newPosition = 98 - pwm_in; // calculate the max/min value can be displayed
-            myEnc.write(newPosition);
-          }
-          else { // pwm_in + (-)newPosition < 0
-            newPosition = 98 - pwm_in; // calculate the max/min value can be displayed
-            newPosition = (-1) * newPosition;
-            myEnc.write(newPosition);
-          }
+        else { // pwm_in + (-)newPosition < 0
+          newPosition = 98 - pwm_in; // calculate the max/min value can be displayed
+          newPosition = (-1) * newPosition;
+          myEnc.write(newPosition);
         }
-        oldpwm_in = pwm_in;
-        oldPosition = newPosition;
       }
     }
   }
-  else { // LASER OFF
+  // LASER OFF
+  else {
     stato = 0;
-    oldPosition++;
     analogWrite(pwm_out_pin, 0);
   }
 
@@ -140,4 +138,3 @@ void loop() {
     u8x8.print("%");
   }
 }
-
