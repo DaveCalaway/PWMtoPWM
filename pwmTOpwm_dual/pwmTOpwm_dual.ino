@@ -53,7 +53,7 @@ void setup() {
 void loop() {
 
   // Read the PWM_in
-  unsigned long pulse = pulseIn(pwm_in_pin, HIGH); // pulse 0 - 2040
+  unsigned long pulse = pulseIn(pwm_in_pin, HIGH, 125000); // pulse 0 - 2040
   // media pulse
   EMA_S_pulse = (EMA_a_pulse * pulse) + ((1 - EMA_a_pulse) * EMA_S_pulse); //run the EMA
   pwm_in = map(EMA_S_pulse, 0, 2040, 0, 100);
@@ -94,7 +94,7 @@ void loop() {
   }
 
   // ------------- Display  -------------
-  if (millis() - previousMillis >= ref) {
+  if (millis() - previousMillis >= ref && pulse != 0 ) {
     previousMillis = millis();
 
     u8x8.setCursor(2, 1);
