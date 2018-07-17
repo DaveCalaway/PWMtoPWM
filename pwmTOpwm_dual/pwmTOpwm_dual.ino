@@ -54,10 +54,11 @@ void loop() {
 
   // Read the PWM_in
   unsigned long pulse = pulseIn(pwm_in_pin, HIGH, 125000); // pulse 0 - 2040
+  //Serial.println(pulse);
   // media pulse
   EMA_S_pulse = (EMA_a_pulse * pulse) + ((1 - EMA_a_pulse) * EMA_S_pulse); //run the EMA
   pwm_in = map(EMA_S_pulse, 0, 2040, 0, 100);
-  //Serial.println(pulse);
+
   // LASER ON
   if ( pulse > 10 ) {
     stato = 1;
